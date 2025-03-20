@@ -12,7 +12,7 @@ import re
 import time
 import uuid
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Optional, TypedDict
+from typing import TYPE_CHECKING, Optional, TypedDict, Callable
 
 from playwright._impl._errors import TimeoutError
 from playwright.async_api import Browser as PlaywrightBrowser
@@ -107,6 +107,9 @@ class BrowserContextConfig:
 
 	    include_dynamic_attributes: bool = True
 	        Include dynamic attributes in the CSS selector. If you want to reuse the css_selectors, it might be better to set this to False.
+
+	    custom_on_request: Optional[callable] = None
+	    custom_on_response: Optional[callable] = None
 	"""
 
 	cookies_file: str | None = None
@@ -134,6 +137,9 @@ class BrowserContextConfig:
 	include_dynamic_attributes: bool = True
 
 	_force_keep_context_alive: bool = False
+
+	custom_on_request: Optional[Callable] = None
+	custom_on_response: Optional[Callable] = None
 
 
 @dataclass
@@ -477,7 +483,10 @@ class BrowserContext:
 			nonlocal last_activity
 			pending_requests.add(request)
 			last_activity = asyncio.get_event_loop().time()
-			# logger.debug(f'Request started: {request.url} ({request.resource_type})')
+
+			# Call custom request handler if provided
+			if self.config.custom_on_request:
+				await self.config.custom_on_request(request)
 
 		async def on_response(response):
 			request = response.request
@@ -518,7 +527,10 @@ class BrowserContext:
 			nonlocal last_activity
 			pending_requests.remove(request)
 			last_activity = asyncio.get_event_loop().time()
-			# logger.debug(f'Request resolved: {request.url} ({content_type})')
+
+			# Call custom response handler if provided
+			if self.config.custom_on_response:
+				await self.config.custom_on_response(response)
 
 		# Attach event listeners
 		page.on('request', on_request)
