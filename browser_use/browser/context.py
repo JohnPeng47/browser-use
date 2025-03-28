@@ -168,6 +168,16 @@ class BrowserContext:
 
 		# Initialize these as None - they'll be set up when needed
 		self.session: BrowserSession | None = None
+		
+		# Default noop handlers
+		async def noop_request_handler(request):
+			return None
+
+		async def noop_response_handler(response):
+			return None
+
+		self.req_handler = noop_request_handler
+		self.res_handler = noop_response_handler
 
 	async def __aenter__(self):
 		"""Async context manager entry"""
@@ -327,6 +337,7 @@ class BrowserContext:
 				record_video_size=self.config.browser_window_size,
 				locale=self.config.locale,
 			)
+			await self._register_http_handlers(context, self.req_handler, self.res_handler)
 
 		if self.config.trace_path:
 			await context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -376,6 +387,19 @@ class BrowserContext:
 		)
 
 		return context
+
+	# Register request/response handlers
+	async def _register_http_handlers(self, context, request_handler, response_handler):
+		async def handle_request(route):
+			request = route.request
+			await request_handler(request)
+
+			await route.continue_()
+
+			response = await request.response()
+			await response_handler(response)
+
+		await context.route("**/*", handle_request)
 
 	async def _wait_for_stable_network(self):
 		page = await self.get_current_page()
@@ -477,7 +501,6 @@ class BrowserContext:
 			nonlocal last_activity
 			pending_requests.add(request)
 			last_activity = asyncio.get_event_loop().time()
-			# logger.debug(f'Request started: {request.url} ({request.resource_type})')
 
 		async def on_response(response):
 			request = response.request
@@ -518,7 +541,6 @@ class BrowserContext:
 			nonlocal last_activity
 			pending_requests.remove(request)
 			last_activity = asyncio.get_event_loop().time()
-			# logger.debug(f'Request resolved: {request.url} ({content_type})')
 
 		# Attach event listeners
 		page.on('request', on_request)
@@ -705,6 +727,7 @@ class BrowserContext:
 		try:
 			await self.remove_highlights()
 			dom_service = DomService(page)
+			# AGENT: interestng
 			content = await dom_service.get_clickable_elements(
 				focus_element=focus_element,
 				viewport_expansion=self.config.viewport_expansion,
@@ -783,7 +806,7 @@ class BrowserContext:
                 """
 			)
 		except Exception as e:
-			logger.debug(f'Failed to remove highlights (this is usually ok): {str(e)}')
+			logger.debug(f'Failed to remove high	lights (this is usually ok): {str(e)}')
 			# Don't raise the error since this is not critical functionality
 			pass
 

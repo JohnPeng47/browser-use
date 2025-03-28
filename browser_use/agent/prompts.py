@@ -100,6 +100,9 @@ Interactive elements from top layer of the current page inside the viewport:
 """
 
 		if self.result:
+			# AGENT: should make use of action result/errors here to make agent follow up on result
+			# of previous action
+			# probably also want to include HTTP requests/resposnes here as well
 			for i, result in enumerate(self.result):
 				if result.extracted_content:
 					state_description += f'\nAction result {i + 1}/{len(self.result)}: {result.extracted_content}'

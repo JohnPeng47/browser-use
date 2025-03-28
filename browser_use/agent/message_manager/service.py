@@ -112,6 +112,7 @@ class MessageManager:
 		state: BrowserState,
 		result: Optional[List[ActionResult]] = None,
 		step_info: Optional[AgentStepInfo] = None,
+		pentest_analysis: Optional[str] = None,
 		use_vision=True,
 	) -> None:
 		"""Add browser state as human message"""
@@ -133,7 +134,7 @@ class MessageManager:
 						self._add_message_with_tokens(msg)
 					result = None  # if result in history, we dont want to add it again
 
-		# otherwise add state message and result to next message (which will not stay in memory)
+		# otherwise add state message and result to next  message (which will not stay in memory)
 		state_message = AgentMessagePrompt(
 			state,
 			result,
@@ -150,7 +151,7 @@ class MessageManager:
 				'args': model_output.model_dump(mode='json', exclude_unset=True),
 				'id': str(self.state.tool_id),
 				'type': 'tool_call',
-			}
+			} 
 		]
 
 		msg = AIMessage(
@@ -239,7 +240,7 @@ class MessageManager:
 		return tokens
 
 	def cut_messages(self):
-		"""Get current message list, potentially trimmed to max tokens"""
+		"""Get  current message list, potentially trimmed to max tokens"""
 		diff = self.state.history.current_tokens - self.settings.max_input_tokens
 		if diff <= 0:
 			return None
