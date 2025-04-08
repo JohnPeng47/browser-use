@@ -112,7 +112,6 @@ class MessageManager:
 		state: BrowserState,
 		result: Optional[List[ActionResult]] = None,
 		step_info: Optional[AgentStepInfo] = None,
-		pentest_analysis: Optional[str] = None,
 		use_vision=True,
 	) -> None:
 		"""Add browser state as human message"""

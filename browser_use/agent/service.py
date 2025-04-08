@@ -6,7 +6,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, Type, TypeVar
+from typing import Any, Awaitable, Callable, Dict, Generic, List, Optional, Tuple, Type, TypeVar
 
 from dotenv import load_dotenv
 from langchain_core.language_models.chat_models import BaseChatModel
@@ -51,6 +51,7 @@ from browser_use.telemetry.views import (
 	AgentStepTelemetryEvent,
 )
 from browser_use.utils import time_execution_async, time_execution_sync
+from browser_use.http import HTTPMessage
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -455,11 +456,13 @@ class Agent(Generic[Context]):
 
 		return [ActionResult(error=error_msg, include_in_memory=True)]
 
+	# TODO: add HTTPHistory to this, and modify AgentHistory to add list of HTTPMessages
 	def _make_history_item(
 		self,
 		model_output: AgentOutput | None,
 		state: BrowserState,
 		result: list[ActionResult],
+		http_msgs: List[HTTPMessage],
 		metadata: Optional[StepMetadata] = None,
 	) -> None:
 		"""Create and store history item"""
@@ -477,8 +480,13 @@ class Agent(Generic[Context]):
 			screenshot=state.screenshot,
 		)
 
-		history_item = AgentHistory(model_output=model_output, result=result, state=state_history, metadata=metadata)
-
+		history_item = AgentHistory(
+			model_output=model_output, 
+			result=result, 
+			state=state_history, 
+			metadata=metadata,
+			http_msgs=http_msgs,
+		)
 		self.state.history.history.append(history_item)
 
 	THINK_TAGS = re.compile(r'<think>.*?</think>', re.DOTALL)

@@ -5,7 +5,7 @@ import traceback
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Literal, Optional, Type
+from typing import Any, Dict, List, Tuple, Literal, Optional, Type
 
 from langchain_core.language_models.chat_models import BaseChatModel
 from openai import RateLimitError
@@ -21,6 +21,7 @@ from browser_use.dom.history_tree_processor.service import (
 	HistoryTreeProcessor,
 )
 from browser_use.dom.views import SelectorMap
+from browser_use.http import HTTPMessage
 
 ToolCallingMethod = Literal['function_calling', 'json_mode', 'raw', 'auto']
 
@@ -55,8 +56,8 @@ class AgentSettings(BaseModel):
 	max_actions_per_step: int = 10
 
 	tool_calling_method: Optional[ToolCallingMethod] = 'auto'
-	page_extraction_llm: Optional[BaseChatModel] = None
-	planner_llm: Optional[BaseChatModel] = None
+	page_extraction_llm: Optional[Any] = None
+	planner_llm: Optional[Any] = None
 	planner_interval: int = 1  # Run planner every N steps
 
 
@@ -150,7 +151,7 @@ class AgentOutput(BaseModel):
 		model_.__doc__ = 'AgentOutput model with custom actions'
 		return model_
 
-
+# TODO: add HTTPMethod here
 class AgentHistory(BaseModel):
 	"""History item for agent actions"""
 
@@ -158,6 +159,7 @@ class AgentHistory(BaseModel):
 	result: list[ActionResult]
 	state: BrowserStateHistory
 	metadata: Optional[StepMetadata] = None
+	http_msgs: List[HTTPMessage] = Field(default_factory=list)
 
 	model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
@@ -190,8 +192,9 @@ class AgentHistory(BaseModel):
 			'result': [r.model_dump(exclude_none=True) for r in self.result],
 			'state': self.state.to_dict(),
 			'metadata': self.metadata.model_dump() if self.metadata else None,
+			# TODO: not awaited???
+			'http_msgs': [msg.to_json() for msg in self.http_msgs],
 		}
-
 
 class AgentHistoryList(BaseModel):
 	"""List of agent history items"""
