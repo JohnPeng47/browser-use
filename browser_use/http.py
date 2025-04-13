@@ -1,7 +1,8 @@
+import base64
+import xml.etree.ElementTree as ET
 from dataclasses import dataclass
-from typing import List, Optional, Dict, Any, ClassVar
-from pathlib import Path
-import json
+from typing import List, Optional, Dict, Any
+
 from playwright.sync_api import Request, Response
 
 DEFAULT_INCLUDE_MIME = ["html", "script", "xml", "flash", "other_text"]
@@ -254,6 +255,22 @@ class HTTPMessage:
     request: HTTPRequest 
     response: Optional[HTTPResponse]
 
+    @property
+    def url(self):
+        return self.request.url
+    
+    @property
+    def method(self):
+        return self.request.method
+    
+    @property
+    def body(self):
+        return self.request.post_data
+    
+    @property
+    def id(self):
+        return f"{self.method} {self.url}\n{self.body}"
+    
     async def to_str(self) -> str:
         req_str = str(self.request)
         resp_str = await self.response.to_str() if self.response else ""
@@ -273,30 +290,137 @@ class HTTPMessage:
         response = HTTPResponse.from_json(data["response"]) if data.get("response") else None
         return cls(request=request, response=response)
 
-@dataclass
-class HTTPMessageSession:
-    """A collection of HTTP messages with a name"""
-    messages: List[HTTPMessage]
-    name: str
+def parse_burp_headers(raw_headers: str) -> Dict[str, str]:
+    """Parse HTTP headers from a raw string into a dictionary"""
+    headers = {}
+    lines = raw_headers.split('\n')
+    
+    # Skip the first line (HTTP method line) for request headers
+    start_line = 1 if lines and (lines[0].startswith('GET') or lines[0].startswith('POST')) else 0
+    
+    for line in lines[start_line:]:
+        if not line.strip():
+            continue
+        parts = line.split(':', 1)
+        if len(parts) == 2:
+            key, value = parts
+            headers[key.strip().lower()] = value.strip()
+    
+    return headers
 
-    async def to_json(self) -> Dict[str, Any]:
-        return {
-            "name": self.name,
-            "messages": [await msg.to_json() for msg in self.messages]
-        }
+def parse_burp_request(request_text: str, is_base64: bool, url: str, method: str) -> HTTPRequest:
+    """Parse raw HTTP request data into a HTTPRequest object"""
+    if is_base64:
+        try:
+            request_text = base64.b64decode(request_text).decode('utf-8', errors='replace')
+        except Exception as e:
+            print(f"Error decoding base64 request: {e}")
+            request_text = ""
+    
+    # Split headers and body
+    parts = request_text.split('\n\n', 1)
+    headers_text = parts[0]
+    post_data = {}
 
-    @classmethod
-    def from_json(cls, data: Dict[str, Any]) -> "HTTPMessageSession":
-        messages = [HTTPMessage.from_json(msg_data) for msg_data in data["messages"]]
-        return cls(messages=messages, name=data["name"])
+    if method == "POST":
+        post_payload = request_text.split("\r\n\r\n")[1]
+        if "&" in post_payload:
+            kv_pairs = post_payload.split("&")
+            for k,v in [kv.split("=") for kv in kv_pairs]:
+                post_data[k] = v       
+            
+    headers = parse_burp_headers(headers_text)
+    # Create request data
+    request_data = HTTPRequestData(
+        method=method,
+        url=url,
+        headers=headers,
+        post_data=post_data,
+        redirected_from_url=None,  # No redirect info in Burp export
+        redirected_to_url=None,    # No redirect info in Burp export
+        is_iframe=False            # No iframe info in Burp export
+    )
+    
+    return HTTPRequest(request_data)
 
-    async def to_json_file(self, json_path: Path) -> None:
-        json_data = await self.to_json()
-        with open(json_path, "w") as f:
-            json.dump(json_data, f, indent=2)
+def parse_burp_response(response_text: str, is_base64: bool, url: str, status: int) -> HTTPResponse:
+    """Parse raw HTTP response data into a HTTPResponse object"""
+    body = None
+    body_error = None
+    
+    try:
+        if is_base64:
+            decoded_text = base64.b64decode(response_text)
+            # Find the empty line that separates headers from body
+            headers_end = decoded_text.find(b'\r\n\r\n')
+            if headers_end != -1:
+                headers_text = decoded_text[:headers_end].decode('utf-8', errors='replace')
+                body = decoded_text[headers_end + 4:]  # Skip \r\n\r\n
+            else:
+                headers_text = decoded_text.decode('utf-8', errors='replace')
+        else:
+            parts = response_text.split('\n\n', 1)
+            headers_text = parts[0]
+            body = parts[1].encode('utf-8') if len(parts) > 1 else None
+    except Exception as e:
+        headers_text = ""
+        body_error = f"Error processing response: {str(e)}"
+    
+    headers = parse_burp_headers(headers_text)
+    
+    # Create response data
+    response_data = HTTPResponseData(
+        url=url,
+        status=status,
+        headers=headers,
+        is_iframe=False,  # No iframe info in Burp export
+        body=body,
+        body_error=body_error
+    )
+    
+    return HTTPResponse(response_data)
 
-    @classmethod
-    async def from_json_file(cls, json_path: Path) -> "HTTPMessageSession":
-        with open(json_path, "r") as f:
-            data = json.load(f)
-        return cls.from_json(data)
+def parse_burp_xml(filepath: str) -> List[HTTPMessage]:
+    """Parse a Burp Suite XML export file into an HTTPMessageList"""
+    # Read the XML content
+    with open(filepath, "r", encoding="utf-8") as f:
+        xml_content = f.read()
+
+    # Extract actual XML content if it's wrapped in document tags
+    if "<document_content>" in xml_content:
+        start = xml_content.find("<document_content>") + len("<document_content>")
+        end = xml_content.find("</document_content>")
+        xml_content = xml_content[start:end]
+
+    root = ET.fromstring(xml_content)
+    messages = []
+    
+    for item in root.findall(".//item"):
+        try:
+            # Extract basic information
+            url = item.find("url").text
+            method = item.find("method").text
+            status_elem = item.find("status")
+            status = int(status_elem.text) if status_elem is not None else 0
+            
+            # Parse request
+            request_elem = item.find("request")
+            is_request_base64 = request_elem.get("base64") == "true"
+            request = parse_burp_request(request_elem.text, is_request_base64, url, method)
+            
+            # Parse response
+            response = None
+            response_elem = item.find("response")
+            if response_elem is not None and response_elem.text:
+                is_response_base64 = response_elem.get("base64") == "true"
+                response = parse_burp_response(response_elem.text, is_response_base64, url, status)
+            
+            # Create HTTP message
+            message = HTTPMessage(request=request, response=response)
+            messages.append(message)
+        
+        except Exception as e:
+            print(f"Error parsing item: {e}")
+            continue
+    
+    return messages

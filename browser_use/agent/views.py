@@ -159,7 +159,7 @@ class AgentHistory(BaseModel):
 	result: list[ActionResult]
 	state: BrowserStateHistory
 	metadata: Optional[StepMetadata] = None
-	http_msgs: List[HTTPMessage] = Field(default_factory=list)
+	http_msgs: List[Dict] = Field(default_factory=list)
 
 	model_config = ConfigDict(arbitrary_types_allowed=True, protected_namespaces=())
 
@@ -193,7 +193,7 @@ class AgentHistory(BaseModel):
 			'state': self.state.to_dict(),
 			'metadata': self.metadata.model_dump() if self.metadata else None,
 			# TODO: not awaited???
-			'http_msgs': [msg.to_json() for msg in self.http_msgs],
+			'http_msgs': self.http_msgs,
 		}
 
 class AgentHistoryList(BaseModel):

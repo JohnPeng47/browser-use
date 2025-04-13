@@ -462,7 +462,7 @@ class Agent(Generic[Context]):
 		model_output: AgentOutput | None,
 		state: BrowserState,
 		result: list[ActionResult],
-		http_msgs: List[HTTPMessage],
+		http_msgs: List[Dict],
 		metadata: Optional[StepMetadata] = None,
 	) -> None:
 		"""Create and store history item"""
