@@ -77,7 +77,7 @@ class HTTPRequest:
     def is_iframe(self) -> bool:
         return self._data.is_iframe
 
-    async def to_json(self) -> Dict[str, Any]:
+    def to_json(self) -> Dict[str, Any]:
         return {
             "method": self.method,
             "url": self.url,
@@ -114,7 +114,7 @@ class HTTPRequest:
         )
         return cls(request_data)
 
-    def __str__(self) -> str:
+    def to_str(self) -> str:
         """String representation of HTTP request"""
         req_str = "[Request]: " + str(self.method) + " " + str(self.url) + "\n"
         
