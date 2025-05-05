@@ -337,7 +337,7 @@ class BrowserContext:
 				record_video_size=self.config.browser_window_size,
 				locale=self.config.locale,
 			)
-			await self._register_http_handlers(context, self.req_handler, self.res_handler)
+			await self._register_http_handlers(context)
 
 		if self.config.trace_path:
 			await context.tracing.start(screenshots=True, snapshots=True, sources=True)
@@ -389,16 +389,15 @@ class BrowserContext:
 		return context
 
 	# Register request/response handlers
-	async def _register_http_handlers(self, context, request_handler, response_handler):
+	async def _register_http_handlers(self, context):
 		async def handle_request(route):
 			request = route.request
-			await request_handler(request)
+			await self.req_handler(request)
 
 			await route.continue_()
 
 			response = await request.response()
-			await response_handler(response)
-
+			await self.res_handler(response)
 		await context.route("**/*", handle_request)
 
 	async def _wait_for_stable_network(self):
