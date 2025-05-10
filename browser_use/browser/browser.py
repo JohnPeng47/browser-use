@@ -82,6 +82,7 @@ class BrowserConfig:
 
     new_context_config: BrowserContextConfig = field(default_factory=BrowserContextConfig)
     _force_keep_browser_alive: bool = False
+    user_data_dir: str | None = None
 
     def __post_init__(self):
         # Set up proxy configuration if proxy server is provided
@@ -205,8 +206,12 @@ class Browser:
             extra_args.append("--ignore-certificate-errors")
         if self.config.proxy_ca_cert:
             extra_args.append(f"--ca-certificates-path={self.config.proxy_ca_cert}")
+        if self.config.user_data_dir:
+            extra_args.append(f"--user-data-dir={self.config.user_data_dir}")
 
         try:
+            logger.info(f"Initializing browser with extra args: {extra_args}")
+
             # Check if browser is already running
             response = requests.get('http://localhost:9222/json/version', timeout=2)
             if response.status_code == 200:
@@ -296,6 +301,11 @@ class Browser:
         # Add custom CA certificate if provided
         if self.config.proxy_ca_cert:
             args.append(f"--ca-certificates-path={self.config.proxy_ca_cert}")
+
+        if self.config.user_data_dir:
+            args.append(f"--user-data-dir={self.config.user_data_dir}")
+
+        logger.info(f"Initializing browser with extra args: {args}")
             
         # Add user-specified args
         args.extend(self.config.extra_chromium_args)

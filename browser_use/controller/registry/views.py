@@ -34,7 +34,8 @@ class ActionModel(BaseModel):
 	# this will have all the registered actions, e.g.
 	# click_element = param_model = ClickElementParams
 	# done = param_model = None
-	#
+	# NOTE: need to make changes in registr/service.py 
+	# action_explanation: str
 	model_config = ConfigDict(arbitrary_types_allowed=True)
 
 	def get_index(self) -> int | None:
