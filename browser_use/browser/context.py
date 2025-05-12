@@ -170,14 +170,12 @@ class BrowserContext:
 		self.session: BrowserSession | None = None
 		
 		# Default noop handlers
-		async def noop_request_handler(request):
+		async def noop_handler(arg):
 			return None
 
-		async def noop_response_handler(response):
-			return None
-
-		self.req_handler = noop_request_handler
-		self.res_handler = noop_response_handler
+		self.req_handler = noop_handler
+		self.res_handler = noop_handler
+		self.page_handler = noop_handler
 
 	async def __aenter__(self):
 		"""Async context manager entry"""
@@ -288,6 +286,9 @@ class BrowserContext:
 						self.state.target_id = target['targetId']
 						break
 
+		# register the page event handler
+		self._register_new_page(active_page)
+
 		# Bring page to front
 		await active_page.bring_to_front()
 		await active_page.wait_for_load_state('load')
@@ -339,6 +340,7 @@ class BrowserContext:
 			)
 		
 		await self._register_http_handlers(context)
+
 		if self.config.trace_path:
 			await context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
@@ -402,6 +404,10 @@ class BrowserContext:
 			await self.res_handler(response)
 
 		await context.route("**/*", handle_request)
+
+	def _register_new_page(self, page):
+		"""Register a new page event handler"""
+		page.on('framenavigated', self.page_handler)
 
 	async def _wait_for_stable_network(self):
 		page = await self.get_current_page()

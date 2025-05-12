@@ -89,7 +89,7 @@ class AgentStepInfo:
 		return self.step_number >= self.max_steps - 1
 
 
-class ActionResult(BaseModel):
+class  ActionResult(BaseModel):
 	"""Result of executing an action"""
 
 	is_done: Optional[bool] = False
