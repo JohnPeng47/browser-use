@@ -195,6 +195,9 @@ class BrowserContext:
 			if self.session is None:
 				return
 
+			# De-register HTTP handlers
+			await self._deregister_http_handlers(self.session.context)
+
 			# Then remove CDP protocol listeners
 			if self._page_event_handler and self.session.context:
 				try:
@@ -286,8 +289,8 @@ class BrowserContext:
 						self.state.target_id = target['targetId']
 						break
 
-		# register the page event handler
-		self._register_new_page(active_page)
+		# # register the page event handler
+		# self._register_new_page(active_page)
 
 		# Bring page to front
 		await active_page.bring_to_front()
@@ -404,6 +407,11 @@ class BrowserContext:
 			await self.res_handler(response)
 
 		await context.route("**/*", handle_request)
+
+	async def _deregister_http_handlers(self, context):
+		"""De-registers HTTP routes and ignores errors (unfinished requests)"""
+		await context.unroute_all(behavior="ignoreErrors")
+		logger.info("HTTP handlers successfully deregistered")
 
 	def _register_new_page(self, page):
 		"""Register a new page event handler"""
