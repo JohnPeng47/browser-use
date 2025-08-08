@@ -48,7 +48,10 @@ class Controller(Generic[Context]):
 				success: bool = True
 
 			@self.registry.action(
-				'Complete task - with return text and if the task is finished (success=True) or not yet  completly finished (success=False), because last step is reached',
+				"""
+Complete task - with return text and if the task is finished (success=True) or not yet completly finished (success=False), because last step is reached
+*Only* perform this action when the task explicitly asks for it AND if you deem the task complete 				
+				""",
 				param_model=ExtendedOutputModel,
 			)
 			async def done(params: ExtendedOutputModel):
@@ -58,7 +61,10 @@ class Controller(Generic[Context]):
 		else:
 
 			@self.registry.action(
-				'Complete task - with return text and if the task is finished (success=True) or not yet  completly finished (success=False), because last step is reached',
+"""
+Complete task - with return text and if the task is finished (success=True) or not yet  completly finished (success=False), because last step is reached
+*Only* perform this action when the task explicitly asks for it AND if you deem the task complete 
+""",
 				param_model=DoneAction,
 			)
 			async def done(params: DoneAction):
@@ -176,27 +182,27 @@ class Controller(Generic[Context]):
 			return ActionResult(extracted_content=msg, include_in_memory=True)
 
 		# Content Actions
-		@self.registry.action(
-			'Extract page content to retrieve specific information from the page, e.g. all company names, a specifc description, all information about, links with companies in structured format or simply links',
-		)
-		async def extract_content(goal: str, browser: BrowserContext, page_extraction_llm: BaseChatModel):
-			page = await browser.get_current_page()
-			import markdownify
+		# @self.registry.action(
+		# 	'Extract page content to retrieve specific information from the page, e.g. all company names, a specifc description, all information about, links with companies in structured format or simply links',
+		# )
+		# async def extract_content(goal: str, browser: BrowserContext, page_extraction_llm: BaseChatModel):
+		# 	page = await browser.get_current_page()
+		# 	import markdownify
 
-			content = markdownify.markdownify(await page.content())
+		# 	content = markdownify.markdownify(await page.content())
 
-			prompt = 'Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: {goal}, Page: {page}'
-			template = PromptTemplate(input_variables=['goal', 'page'], template=prompt)
-			try:
-				output = page_extraction_llm.invoke(template.format(goal=goal, page=content))
-				msg = f'📄  Extracted from page\n: {output.content}\n'
-				logger.info(msg)
-				return ActionResult(extracted_content=msg, include_in_memory=True)
-			except Exception as e:
-				logger.debug(f'Error extracting content: {e}')
-				msg = f'📄  Extracted from page\n: {content}\n'
-				logger.info(msg)
-				return ActionResult(extracted_content=msg)
+		# 	prompt = 'Your task is to extract the content of the page. You will be given a page and a goal and you should extract all relevant information around this goal from the page. If the goal is vague, summarize the page. Respond in json format. Extraction goal: {goal}, Page: {page}'
+		# 	template = PromptTemplate(input_variables=['goal', 'page'], template=prompt)
+		# 	try:
+		# 		output = page_extraction_llm.invoke(template.format(goal=goal, page=content))
+		# 		msg = f'📄  Extracted from page\n: {output.content}\n'
+		# 		logger.info(msg)
+		# 		return ActionResult(extracted_content=msg, include_in_memory=True)
+		# 	except Exception as e:
+		# 		logger.debug(f'Error extracting content: {e}')
+		# 		msg = f'📄  Extracted from page\n: {content}\n'
+		# 		logger.info(msg)
+		# 		return ActionResult(extracted_content=msg)
 
 		@self.registry.action(
 			'Scroll down the page by pixel amount - if no amount is specified, scroll down one page',

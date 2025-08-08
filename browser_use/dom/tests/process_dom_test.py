@@ -14,27 +14,31 @@ async def test_process_dom():
 		# await page.goto('https://google.com/flights')
 		# await page.goto('https://immobilienscout24.de')
 		# await page.goto('https://seleniumbase.io/w3schools/iframes')
+		
+		browser_state = await context.get_state()
+		print(browser_state.element_tree.clickable_elements_to_string())
 
-		time.sleep(3)
+		# time.sleep(3)
 
-		with open('browser_use/dom/buildDomTree.js', 'r') as f:
-			js_code = f.read()
+		# with open('browser_use/dom/buildDomTree.js', 'r') as f:
+		# 	js_code = f.read()
 
-		start = time.time()
-		dom_tree = await page.evaluate(js_code)
-		end = time.time()
+		# start = time.time()
+		# dom_tree = await page.evaluate(js_code)
+		# end = time.time()
 
-		# print(dom_tree)
-		print(f'Time: {end - start:.2f}s')
+		# # print(dom_tree)
+		# print(f'Time: {end - start:.2f}s')
 
-		os.makedirs('./tmp', exist_ok=True)
-		with open('./tmp/dom.json', 'w') as f:
-			json.dump(dom_tree, f, indent=1)
+		# os.makedirs('./tmp', exist_ok=True)
+		# with open('./tmp/dom.json', 'w') as f:
+		# 	print(json.dump(dom_tree, f, indent=1))
+		# 	json.dump(dom_tree, f, indent=1)
 
-		# both of these work for immobilienscout24.de
-		# await page.click('.sc-dcJsrY.ezjNCe')
-		# await page.click(
-		# 	'div > div:nth-of-type(2) > div > div:nth-of-type(2) > div > div:nth-of-type(2) > div > div > div > button:nth-of-type(2)'
-		# )
+		# # both of these work for immobilienscout24.de
+		# # await page.click('.sc-dcJsrY.ezjNCe')
+		# # await page.click(
+		# # 	'div > div:nth-of-type(2) > div > div:nth-of-type(2) > div > div:nth-of-type(2) > div > div > div > button:nth-of-type(2)'
+		# # )
 
-		input('Press Enter to continue...')
+		# input('Press Enter to continue...')
